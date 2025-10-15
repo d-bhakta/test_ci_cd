@@ -1,8 +1,9 @@
 // This is the stateful widget that will hold our main page content and the navigation bar.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:test_ci_cd/user/calculator/calculator.dart';
-import 'package:test_ci_cd/user/user.dart';
+import 'package:test_ci_cd/screens/calculator/calculator.dart';
+import 'package:test_ci_cd/screens/user/user.dart';
+
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});

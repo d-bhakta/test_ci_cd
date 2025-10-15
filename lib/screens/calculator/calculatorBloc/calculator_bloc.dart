@@ -20,7 +20,6 @@ class CalculatorBloc extends Bloc<CalculatorEvent, CalculatorState> {
       state.copyWith(
         number1: event.number1,
         clearResult: true,
-        errorMessage: '',
       ),
     );
   }
@@ -30,7 +29,6 @@ class CalculatorBloc extends Bloc<CalculatorEvent, CalculatorState> {
       state.copyWith(
         number2: event.number2,
         clearResult: true,
-        errorMessage: '',
       ),
     );
   }
@@ -43,7 +41,6 @@ class CalculatorBloc extends Bloc<CalculatorEvent, CalculatorState> {
       state.copyWith(
         operator: event.operator,
         clearResult: true,
-        errorMessage: '',
       ),
     );
   }
@@ -79,6 +76,6 @@ class CalculatorBloc extends Bloc<CalculatorEvent, CalculatorState> {
         result = num1 / num2;
         break;
     }
-    emit(state.copyWith(result: result, errorMessage: ''));
+    emit(state.copyWith(result: result));
   }
 }
