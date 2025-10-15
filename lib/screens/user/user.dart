@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:test_ci_cd/user/userBloc/users_bloc.dart';
+import 'package:test_ci_cd/screens/user/userBloc/users_bloc.dart';
 
 class UsersPage extends StatelessWidget {
   const UsersPage({super.key});

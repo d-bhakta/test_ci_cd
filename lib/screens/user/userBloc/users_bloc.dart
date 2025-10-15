@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:test_ci_cd/screens/user/user_model.dart';
 import 'package:test_ci_cd/service/users_service.dart';
-import 'package:test_ci_cd/user/user_model.dart';
 
 part 'users_event.dart';
 part 'users_state.dart';
