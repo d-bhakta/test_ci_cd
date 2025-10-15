@@ -1,6 +1,8 @@
 // This is the stateful widget that will hold our main page content and the navigation bar.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:test_ci_cd/user/calculator/calculator.dart';
+import 'package:test_ci_cd/user/user.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -15,8 +17,8 @@ class _MainPageState extends State<MainPage> {
 
   // This is a list of the pages (widgets) we want to display for each tab.
   static const List<Widget> _widgetOptions = <Widget>[
-    HomePage(),
-    SearchPage(),
+    UsersPage(),
+    CalculatorPage(),
     ProfilePage(),
   ];
 
@@ -51,7 +53,7 @@ class _MainPageState extends State<MainPage> {
               borderRadius: BorderRadius.circular(20),
               clipBehavior: Clip.hardEdge,
               child: BottomNavigationBar(
-                backgroundColor: Colors.deepOrange,
+                backgroundColor: Colors.lightBlue.shade100,
                 iconSize: 30,
                 // The list of items (tabs) to display.
                 items: const <BottomNavigationBarItem>[
@@ -60,8 +62,8 @@ class _MainPageState extends State<MainPage> {
                     label: 'Home',
                   ),
                   BottomNavigationBarItem(
-                    icon: Icon(Icons.search),
-                    label: 'Search',
+                    icon: Icon(Icons.calculate),
+                    label: 'Calculator',
                   ),
                   BottomNavigationBarItem(
                     icon: Icon(Icons.person),

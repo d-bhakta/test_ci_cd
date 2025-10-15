@@ -1,4 +1,4 @@
-name: test_navigation
+name: test_ci_cd
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -34,6 +34,9 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  flutter_bloc: ^9.1.1
+  dio: ^5.9.0
+  equatable: ^2.0.7
 
 dev_dependencies:
   flutter_test:
