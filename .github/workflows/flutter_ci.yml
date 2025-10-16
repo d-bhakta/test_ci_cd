@@ -2,7 +2,9 @@ name: Flutter CI
 
 on:
   push:
-    branches: [ main, staging ]
+    branches:
+      - main
+      - staging
     tags:
       - 'v*' # Trigger on version tags like v1.0.0 (on all patterns after v)
     # Commit changes and the before push run these commands
