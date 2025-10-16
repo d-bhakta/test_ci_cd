@@ -34,3 +34,17 @@ jobs:
         with:
           name: coverage-report
           path: coverage/lcov.info
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Build release AAB
+        run: flutter build appbundle --release
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/app/apk/app-release.apk
+            build/app/bundle/app-release.aab
+          generate_release_notes: true
