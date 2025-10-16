@@ -149,7 +149,6 @@ class ProfilePage extends StatelessWidget {
               ),
               InkWell(
                 onTap: () {
-                  print("Profile icon tapped");
                   showModalBottomSheet(
                     context: context,
                     builder: (_) => Container(
