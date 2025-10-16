@@ -3,6 +3,8 @@ name: Flutter CI
 on:
   push:
     branches: [ main, staging ]
+    tags:
+      - 'v*' # Trigger on version tags like v1.0.0 (on all patterns after v)
 
 jobs:
   build:
@@ -48,3 +50,5 @@ jobs:
             build/app/apk/app-release.apk
             build/app/bundle/app-release.aab
           generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
