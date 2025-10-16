@@ -5,6 +5,9 @@ on:
     branches: [ main, staging ]
     tags:
       - 'v*' # Trigger on version tags like v1.0.0 (on all patterns after v)
+    # Commit changes and the before push run these commands
+    # git tag v[YOUR_VERSION] (ex: git tag v1.0.0)
+    # git push origin v[YOUR_VERSION] (ex: git push origin v1.0.0)
 
 jobs:
   build:
@@ -47,8 +50,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            build/app/apk/app-release.apk
-            build/app/bundle/app-release.aab
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/bundle/release/app-release.aab
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
