@@ -15,10 +15,64 @@ permissions:
   pull-requests: write
 
 jobs:
+  validate-version:
+    name: Validate Version
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check version against last release
+        run: |
+          # Extract current version from pubspec.yaml
+          CURRENT_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d ' ')
+          
+          echo "🔍 Validating release version..."
+          echo "Current version in pubspec.yaml: $CURRENT_VERSION"
+          
+          # Get last production release tag (with 'v' prefix)
+          LAST_RELEASE_TAG=$(git tag -l "v*" --sort=-version:refname | head -n 1 || echo "")
+          
+          if [ -n "$LAST_RELEASE_TAG" ]; then
+            LAST_VERSION=${LAST_RELEASE_TAG#v}  # Remove 'v' prefix
+            echo "Last production release: $LAST_VERSION (tag: $LAST_RELEASE_TAG)"
+            echo ""
+          
+            if [ "$CURRENT_VERSION" = "$LAST_VERSION" ]; then
+              echo "❌ ERROR: Version conflict detected!"
+              echo ""
+              echo "Version in pubspec.yaml ($CURRENT_VERSION) is the same as the last production release ($LAST_VERSION)"
+              echo ""
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              echo "📝 Action Required:"
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              echo "Please update the version in pubspec.yaml before releasing."
+              echo ""
+              echo "Current:  version: $CURRENT_VERSION"
+              echo "Example:  version: 1.2.4+46"
+              echo ""
+              echo "ℹ️  Note: Staging tags are excluded from this check."
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              exit 1
+            else
+              echo "✅ Version validation passed!"
+              echo "   Current version ($CURRENT_VERSION) is different from last release ($LAST_VERSION)"
+            fi
+          else
+            echo "ℹ️  No previous production release tags found."
+            echo "✅ This will be the first production release."
+          fi
+
   version-management:
     name: Version Management
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    needs: validate-version
+    if: github.event_name == 'push' && always() && (needs.validate-version.result == 'success' || needs.validate-version.result == 'skipped')
     outputs:
       version_name: ${{ steps.version.outputs.version_name }}
       version_code: ${{ steps.version.outputs.version_code }}
@@ -74,34 +128,6 @@ jobs:
               exit 1
             fi
           
-            # 🔍 CHECK: Verify version is different from last production release tag
-            echo "🔍 Checking if version has been updated from previous release..."
-            # Only check against production tags (those with 'v' prefix)
-            # This excludes staging tags which don't have 'v' prefix
-            LAST_RELEASE_TAG=$(git tag -l "v*" --sort=-version:refname | head -n 1 || echo "")
-          
-            if [ -n "$LAST_RELEASE_TAG" ]; then
-              LAST_VERSION=${LAST_RELEASE_TAG#v}  # Remove 'v' prefix
-              echo "Last production release: $LAST_VERSION"
-              echo "Current version: $CURRENT_VERSION"
-          
-              if [ "$CURRENT_VERSION" = "$LAST_VERSION" ]; then
-                echo "❌ ERROR: Version in pubspec.yaml ($CURRENT_VERSION) is the same as the last production release ($LAST_VERSION)"
-                echo ""
-                echo "📝 Action Required:"
-                echo "   Please update the version in pubspec.yaml before releasing."
-                echo "   Current: version: $CURRENT_VERSION"
-                echo "   Example: version: 1.2.4+46"
-                echo ""
-                echo "ℹ️  Note: Staging tags are excluded from this check."
-                exit 1
-              else
-                echo "✅ Version check passed: $CURRENT_VERSION is different from $LAST_VERSION"
-              fi
-            else
-              echo "ℹ️  No previous production release tags found. This will be the first release."
-            fi
-          
             VERSION_NAME="$BASE_VERSION"
             FULL_VERSION="${BASE_VERSION}+${VERSION_CODE}"
           
@@ -140,6 +166,8 @@ jobs:
   test-and-analyze:
     name: Test & Code Quality
     runs-on: ubuntu-latest
+    needs: validate-version
+    if: always() && (needs.validate-version.result == 'success' || needs.validate-version.result == 'skipped')
     
     steps:
       - name: Checkout repository
@@ -416,7 +444,7 @@ jobs:
   build-summary:
     name: Build Summary
     runs-on: ubuntu-latest
-    needs: [ version-management, test-and-analyze, build-android ]
+    needs: [ version-management, test-and-analyze, build-android, release-staging, release-production ]
     if: always() && github.event_name == 'push'
     
     steps:
