@@ -20,10 +20,12 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     outputs:
-      version: ${{ steps.version.outputs.version }}
       version_name: ${{ steps.version.outputs.version_name }}
-      build_number: ${{ steps.version.outputs.build_number }}
-      branch: ${{ steps.version.outputs.branch }}
+      version_code: ${{ steps.version.outputs.version_code }}
+      full_version: ${{ steps.version.outputs.full_version }}
+      branch_type: ${{ steps.version.outputs.branch_type }}
+      current_date: ${{ steps.version.outputs.current_date }}
+      project_name: ${{ steps.version.outputs.project_name }}
 
     steps:
       - name: Checkout repository
@@ -32,66 +34,80 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Calculate version
+      - name: Extract version from pubspec.yaml
         id: version
         run: |
+          # Get branch info
           BRANCH=${GITHUB_REF#refs/heads/}
-          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+          if [ "$BRANCH" = "main" ]; then
+            BRANCH_TYPE="release"
+          else
+            BRANCH_TYPE="staging"
+          fi
+          echo "branch_type=$BRANCH_TYPE" >> $GITHUB_OUTPUT
           
-          # Get current version from pubspec.yaml
+          # Get project name from pubspec.yaml
+          PROJECT_NAME=$(grep '^name:' pubspec.yaml | sed 's/name: //' | tr -d ' ')
+          echo "project_name=$PROJECT_NAME" >> $GITHUB_OUTPUT
+          
+          # Get current date (YYYY-MM-DD format)
+          CURRENT_DATE=$(date +%Y-%m-%d)
+          echo "current_date=$CURRENT_DATE" >> $GITHUB_OUTPUT
+          
+          # Extract base version from pubspec.yaml
           CURRENT_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d ' ')
-          VERSION_NAME=$(echo $CURRENT_VERSION | cut -d'+' -f1 | cut -d'-' -f1)
+          BASE_VERSION=$(echo $CURRENT_VERSION | cut -d'+' -f1 | cut -d'-' -f1)
           
           # Get git commit info
           COMMIT_COUNT=$(git rev-list --count HEAD)
           COMMIT_HASH=$(git rev-parse --short HEAD)
           
           if [ "$BRANCH" = "main" ]; then
-            # MAIN BRANCH: Manual version control (no auto-increment)
-            # Developer must manually update version in pubspec.yaml
-            # Format: X.Y.Z+BUILD.HASH
+            # MAIN BRANCH: Manual version control
+            # Format: X.Y.Z+BUILD (e.g., 1.2.3+45)
+            VERSION_CODE=$(echo $CURRENT_VERSION | cut -d'+' -f2)
           
-            # Extract current build number or use commit count
-            CURRENT_BUILD=$(echo $CURRENT_VERSION | grep -oP '\+\K[0-9]+' || echo "0")
-            BUILD_NUMBER=$((CURRENT_BUILD + 1))
+            # Validate version format
+            if [ -z "$BASE_VERSION" ] || [ -z "$VERSION_CODE" ]; then
+              echo "❌ Error: Invalid version format in pubspec.yaml"
+              echo "Expected format: version: X.Y.Z+BUILD (e.g., version: 1.2.3+45)"
+              exit 1
+            fi
           
-            NEW_VERSION="${VERSION_NAME}+${BUILD_NUMBER}.${COMMIT_HASH}"
+            VERSION_NAME="$BASE_VERSION"
+            FULL_VERSION="${BASE_VERSION}+${VERSION_CODE}"
           
-            echo "🚀 Production Release"
-            echo "Version: $NEW_VERSION"
-            echo "Note: Version $VERSION_NAME is manually controlled in pubspec.yaml"
+            echo "🚀 Production Release (Manual Control)"
+            echo "Version Name: $VERSION_NAME"
+            echo "Version Code: $VERSION_CODE"
           
-          elif [ "$BRANCH" = "staging" ]; then
-            # STAGING BRANCH: Auto-increment build number with suffix
-            # Format: X.Y.Z-staging+BUILD.HASH
-          
-            # Auto-increment build number based on staging commits
+          else
+            # STAGING BRANCH: Automatic incremental version
+            # Format: X.Y.Z-staging+BUILD.HASH (e.g., 1.2.3-staging+127.b5e9f1a)
             STAGING_BUILD_COUNT=$(git rev-list --count origin/staging 2>/dev/null || echo $COMMIT_COUNT)
-            BUILD_NUMBER=$STAGING_BUILD_COUNT
+            VERSION_CODE=$STAGING_BUILD_COUNT
           
-            NEW_VERSION="${VERSION_NAME}-staging+${BUILD_NUMBER}.${COMMIT_HASH}"
+            VERSION_NAME="${BASE_VERSION}-staging"
+            FULL_VERSION="${BASE_VERSION}-staging+${STAGING_BUILD_COUNT}.${COMMIT_HASH}"
           
-            echo "🔧 Staging Build"
-            echo "Version: $NEW_VERSION"
-            echo "Build auto-incremented: $BUILD_NUMBER"
-          
+            echo "🔧 Staging Build (Auto-increment)"
+            echo "Version Name: $VERSION_NAME"
+            echo "Version Code: $VERSION_CODE"
+            echo "Full Version: $FULL_VERSION"
           fi
           
-          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
-          echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+          echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+          echo "full_version=$FULL_VERSION" >> $GITHUB_OUTPUT
           
-          # Update pubspec.yaml
-          sed -i "s/^version: .*/version: $NEW_VERSION/" pubspec.yaml
-          
-          cat pubspec.yaml | grep "^version:"
-
-      - name: Upload versioned pubspec
-        uses: actions/upload-artifact@v4
-        with:
-          name: pubspec-${{ steps.version.outputs.branch }}
-          path: pubspec.yaml
-          retention-days: 5
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📦 Version Information"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Project:      $PROJECT_NAME"
+          echo "Version:      $FULL_VERSION"
+          echo "Branch Type:  $BRANCH_TYPE"
+          echo "Date:         $CURRENT_DATE"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
   test-and-analyze:
     name: Test & Code Quality
@@ -138,7 +154,7 @@ jobs:
           retention-days: 30
 
   build-android:
-    name: Build Android (${{ needs.version-management.outputs.branch }})
+    name: Build Android (${{ needs.version-management.outputs.branch_type }})
     runs-on: ubuntu-latest
     needs: [ version-management, test-and-analyze ]
     if: github.event_name == 'push'
@@ -146,11 +162,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Download versioned pubspec
-        uses: actions/download-artifact@v4
-        with:
-          name: pubspec-${{ needs.version-management.outputs.branch }}
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -162,59 +173,57 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build APK for ${{ needs.version-management.outputs.branch }}
+      - name: Build APK (Always)
         run: |
-          if [ "${{ needs.version-management.outputs.branch }}" = "main" ]; then
-            echo "🚀 Building production APK"
-            flutter build apk --release \
-              --build-name=${{ needs.version-management.outputs.version_name }} \
-              --build-number=${{ needs.version-management.outputs.build_number }}
-          else
-            echo "🔧 Building staging APK"
-            flutter build apk --release \
-              --build-name=${{ needs.version-management.outputs.version_name }} \
-              --build-number=${{ needs.version-management.outputs.build_number }}
-          fi
+          echo "Building APK for ${{ needs.version-management.outputs.branch_type }}"
+          flutter build apk --release \
+            --build-name=${{ needs.version-management.outputs.version_name }} \
+            --build-number=${{ needs.version-management.outputs.version_code }}
 
-      - name: Build AAB for ${{ needs.version-management.outputs.branch }}
+      - name: Build AAB (Release Only)
+        if: needs.version-management.outputs.branch_type == 'release'
         run: |
-          if [ "${{ needs.version-management.outputs.branch }}" = "main" ]; then
-            echo "🚀 Building production AAB"
-            flutter build appbundle --release \
-              --build-name=${{ needs.version-management.outputs.version_name }} \
-              --build-number=${{ needs.version-management.outputs.build_number }}
-          else
-            echo "🔧 Building staging AAB"
-            flutter build appbundle --release \
-              --build-name=${{ needs.version-management.outputs.version_name }} \
-              --build-number=${{ needs.version-management.outputs.build_number }}
-          fi
+          echo "Building AAB for Play Store"
+          flutter build appbundle --release \
+            --build-name=${{ needs.version-management.outputs.version_name }} \
+            --build-number=${{ needs.version-management.outputs.version_code }}
 
       - name: Rename artifacts
         run: |
-          BRANCH=${{ needs.version-management.outputs.branch }}
-          VERSION=${{ needs.version-management.outputs.version }}
+          # Get variables
+          PROJECT_NAME="${{ needs.version-management.outputs.project_name }}"
+          FULL_VERSION="${{ needs.version-management.outputs.full_version }}"
+          BRANCH_TYPE="${{ needs.version-management.outputs.branch_type }}"
+          CURRENT_DATE="${{ needs.version-management.outputs.current_date }}"
           
-          # Rename APK
+          # Format: {projectname}-{version}-{release/staging}-{date}.apk
+          APK_NAME="${PROJECT_NAME}-${FULL_VERSION}-${BRANCH_TYPE}-${CURRENT_DATE}.apk"
+          
+          echo "📝 Renaming APK to: $APK_NAME"
           cp build/app/outputs/flutter-apk/app-release.apk \
-             build/app/outputs/flutter-apk/app-${BRANCH}-${VERSION}.apk
+             build/app/outputs/flutter-apk/${APK_NAME}
           
-          # Rename AAB
-          cp build/app/outputs/bundle/release/app-release.aab \
-             build/app/outputs/bundle/release/app-${BRANCH}-${VERSION}.aab
+          # Rename AAB only for release builds
+          if [ "$BRANCH_TYPE" = "release" ]; then
+            AAB_NAME="${PROJECT_NAME}-${FULL_VERSION}-${BRANCH_TYPE}-${CURRENT_DATE}.aab"
+            echo "📝 Renaming AAB to: $AAB_NAME"
+            cp build/app/outputs/bundle/release/app-release.aab \
+               build/app/outputs/bundle/release/${AAB_NAME}
+          fi
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: apk-${{ needs.version-management.outputs.branch }}-${{ needs.version-management.outputs.version }}
-          path: build/app/outputs/flutter-apk/app-${{ needs.version-management.outputs.branch }}-${{ needs.version-management.outputs.version }}.apk
-          retention-days: 30
+          name: ${{ needs.version-management.outputs.project_name }}-${{ needs.version-management.outputs.full_version }}-${{ needs.version-management.outputs.branch_type }}-${{ needs.version-management.outputs.current_date }}-apk
+          path: build/app/outputs/flutter-apk/${{ needs.version-management.outputs.project_name }}-${{ needs.version-management.outputs.full_version }}-${{ needs.version-management.outputs.branch_type }}-${{ needs.version-management.outputs.current_date }}.apk
+      #          retention-days: 30
 
-      - name: Upload AAB artifact
+      - name: Upload AAB artifact (Release Only)
+        if: needs.version-management.outputs.branch_type == 'release'
         uses: actions/upload-artifact@v4
         with:
-          name: aab-${{ needs.version-management.outputs.branch }}-${{ needs.version-management.outputs.version }}
-          path: build/app/outputs/bundle/release/app-${{ needs.version-management.outputs.branch }}-${{ needs.version-management.outputs.version }}.aab
+          name: ${{ needs.version-management.outputs.project_name }}-${{ needs.version-management.outputs.full_version }}-${{ needs.version-management.outputs.branch_type }}-${{ needs.version-management.outputs.current_date }}-aab
+          path: build/app/outputs/bundle/release/${{ needs.version-management.outputs.project_name }}-${{ needs.version-management.outputs.full_version }}-${{ needs.version-management.outputs.branch_type }}-${{ needs.version-management.outputs.current_date }}.aab
           retention-days: 30
 
   release-staging:
@@ -230,40 +239,37 @@ jobs:
       - name: Download APK
         uses: actions/download-artifact@v4
         with:
-          name: apk-staging-${{ needs.version-management.outputs.version }}
-          path: ./artifacts
-
-      - name: Download AAB
-        uses: actions/download-artifact@v4
-        with:
-          name: aab-staging-${{ needs.version-management.outputs.version }}
+          name: ${{ needs.version-management.outputs.project_name }}-${{ needs.version-management.outputs.full_version }}-${{ needs.version-management.outputs.branch_type }}-${{ needs.version-management.outputs.current_date }}-apk
           path: ./artifacts
 
       - name: Create Staging Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: staging-v${{ needs.version-management.outputs.version }}
-          name: Staging Release v${{ needs.version-management.outputs.version }}
+          tag_name: ${{ needs.version-management.outputs.full_version }}
+          name: Staging ${{ needs.version-management.outputs.full_version }} (${{ needs.version-management.outputs.current_date }})
           body: |
             ## 🔧 Staging Build
             
-            **Version:** `${{ needs.version-management.outputs.version }}`
+            **Full Version:** `${{ needs.version-management.outputs.full_version }}`
+            **Version Code:** `${{ needs.version-management.outputs.version_code }}`
             **Branch:** `staging`
+            **Build Date:** `${{ needs.version-management.outputs.current_date }}`
             **Commit:** `${{ github.sha }}`
             
-            ### Changes
+            ### 📝 Changes
             ${{ github.event.head_commit.message }}
             
-            ### Build Info
-            - Build Number: `${{ needs.version-management.outputs.build_number }}`
+            ### 📦 Build Info
+            - Project: `${{ needs.version-management.outputs.project_name }}`
             - Flutter Version: `3.24.0`
-            - Build Date: `${{ github.event.head_commit.timestamp }}`
+            
+            ### 📥 Download
+            - **APK**: `${{ needs.version-management.outputs.project_name }}-${{ needs.version-management.outputs.full_version }}-staging-${{ needs.version-management.outputs.current_date }}.apk`
             
             ---
             ⚠️ **This is a staging build for internal testing only**
           files: |
-            ./artifacts/app-staging-${{ needs.version-management.outputs.version }}.apk
-            ./artifacts/app-staging-${{ needs.version-management.outputs.version }}.aab
+            ./artifacts/${{ needs.version-management.outputs.project_name }}-${{ needs.version-management.outputs.full_version }}-staging-${{ needs.version-management.outputs.current_date }}.apk
           draft: false
           prerelease: true
         env:
@@ -284,20 +290,20 @@ jobs:
       - name: Download APK
         uses: actions/download-artifact@v4
         with:
-          name: apk-main-${{ needs.version-management.outputs.version }}
+          name: ${{ needs.version-management.outputs.project_name }}-${{ needs.version-management.outputs.full_version }}-${{ needs.version-management.outputs.branch_type }}-${{ needs.version-management.outputs.current_date }}-apk
           path: ./artifacts
 
       - name: Download AAB
         uses: actions/download-artifact@v4
         with:
-          name: aab-main-${{ needs.version-management.outputs.version }}
+          name: ${{ needs.version-management.outputs.project_name }}-${{ needs.version-management.outputs.full_version }}-${{ needs.version-management.outputs.branch_type }}-${{ needs.version-management.outputs.current_date }}-aab
           path: ./artifacts
 
       - name: Generate changelog
         id: changelog
         run: |
-          # Get commits since last release
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          # Get commits since last release tag
+          LAST_TAG=$(git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo "")
           if [ -z "$LAST_TAG" ]; then
             CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges -10)
           else
@@ -308,47 +314,40 @@ jobs:
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Create Production Release
+      - name: Create Production Release with Tag
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.version-management.outputs.version }}
-          name: Release v${{ needs.version-management.outputs.version_name }}
+          tag_name: v${{ needs.version-management.outputs.full_version }}
+          name: Release v${{ needs.version-management.outputs.full_version }} (${{ needs.version-management.outputs.current_date }})
           body: |
             ## 🚀 Production Release
             
-            **Version:** `${{ needs.version-management.outputs.version_name }}`
-            **Build Number:** `${{ needs.version-management.outputs.build_number }}`
-            **Branch:** `main`
+            **Full Version:** `${{ needs.version-management.outputs.full_version }}`
+            **Version Code:** `${{ needs.version-management.outputs.version_code }}`
+            **Release Date:** `${{ needs.version-management.outputs.current_date }}`
             **Commit:** `${{ github.sha }}`
             
-            ### 📝 Changes
+            ### 📝 Changelog
             ${{ steps.changelog.outputs.changelog }}
             
             ### 📦 Build Info
+            - Project: `${{ needs.version-management.outputs.project_name }}`
             - Flutter Version: `3.24.0`
-            - Release Date: `${{ github.event.head_commit.timestamp }}`
+            - Branch: `main`
             
             ### 📥 Downloads
-            - **APK**: For direct installation and testing
-            - **AAB**: For Google Play Store distribution
+            - **APK**: `${{ needs.version-management.outputs.project_name }}-${{ needs.version-management.outputs.full_version }}-release-${{ needs.version-management.outputs.current_date }}.apk`
+            - **AAB**: `${{ needs.version-management.outputs.project_name }}-${{ needs.version-management.outputs.full_version }}-release-${{ needs.version-management.outputs.current_date }}.aab`
             
             ---
-            ✅ **Ready for production deployment**
+            ✅ **Ready for Google Play Store deployment**
           files: |
-            ./artifacts/app-main-${{ needs.version-management.outputs.version }}.apk
-            ./artifacts/app-main-${{ needs.version-management.outputs.version }}.aab
+            ./artifacts/${{ needs.version-management.outputs.project_name }}-${{ needs.version-management.outputs.full_version }}-release-${{ needs.version-management.outputs.current_date }}.apk
+            ./artifacts/${{ needs.version-management.outputs.project_name }}-${{ needs.version-management.outputs.full_version }}-release-${{ needs.version-management.outputs.current_date }}.aab
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Commit version bump
-        run: |
-          git config user.name "GitHub Actions Bot"
-          git config user.email "actions@github.com"
-          git add pubspec.yaml
-          git commit -m "chore: bump version to ${{ needs.version-management.outputs.version }} [skip ci]" || echo "No changes to commit"
-          git push origin main || echo "Nothing to push"
 
   build-summary:
     name: Build Summary
@@ -361,17 +360,25 @@ jobs:
         run: |
           echo "## 📊 Build Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Branch:** \`${{ needs.version-management.outputs.branch }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Version:** \`${{ needs.version-management.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Build Number:** \`${{ needs.version-management.outputs.build_number }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Project:** \`${{ needs.version-management.outputs.project_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Full Version:** \`${{ needs.version-management.outputs.full_version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Version Code:** \`${{ needs.version-management.outputs.version_code }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Build Type:** \`${{ needs.version-management.outputs.branch_type }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** \`${{ needs.version-management.outputs.current_date }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "**APK:** \`${{ needs.version-management.outputs.project_name }}-${{ needs.version-management.outputs.full_version }}-${{ needs.version-management.outputs.branch_type }}-${{ needs.version-management.outputs.current_date }}.apk\`" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.version-management.outputs.branch_type }}" = "release" ]; then
+            echo "**AAB:** \`${{ needs.version-management.outputs.project_name }}-${{ needs.version-management.outputs.full_version }}-${{ needs.version-management.outputs.branch_type }}-${{ needs.version-management.outputs.current_date }}.aab\`" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Job Status" >> $GITHUB_STEP_SUMMARY
           echo "- Tests: \`${{ needs.test-and-analyze.result }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- Build: \`${{ needs.build-android.result }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          if [ "${{ needs.version-management.outputs.branch }}" = "main" ]; then
+          if [ "${{ needs.version-management.outputs.branch_type }}" = "release" ]; then
             echo "🚀 **Production build completed**" >> $GITHUB_STEP_SUMMARY
           else
             echo "🔧 **Staging build completed**" >> $GITHUB_STEP_SUMMARY

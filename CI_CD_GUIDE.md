@@ -1,72 +1,86 @@
-# Flutter CI/CD Pipeline Guide
+# Flutter CI/CD Pipeline - Full Manual Control Guide
 
 ## 🎯 Overview
 
-This repository uses a production-ready CI/CD pipeline with **combined versioning strategy**:
+This CI/CD pipeline provides **100% manual control** over version name and version code. You decide
+when and how to update versions in `pubspec.yaml`.
 
-- **Main Branch**: Manual version control (production releases)
-- **Staging Branch**: Auto-increment build numbers (testing releases)
+## 📋 Version Control Strategy
 
-## 📋 Version Format
+### Full Manual Control
 
-### Main Branch (Production)
+```yaml
+# In pubspec.yaml
+version: 1.2.3+45
 
+# 1.2.3 = Version Name (YOU control this)
+# 45    = Version Code (YOU control this)
 ```
-Format: X.Y.Z+BUILD.HASH
-Example: 1.2.3+45.a3f7b2c
 
-X.Y.Z = Manually controlled version
-BUILD = Auto-incremented build number
-HASH = Git commit hash (for traceability)
+**Both version name AND version code are fully manual!**
+
+### Artifact Naming Convention
 ```
+Format: {version}-{projectname}-{release/staging}-{date}.apk
+
+Examples:
+- 1.2.3-test_ci_cd-release-2024-10-17.apk
+- 1.2.3-test_ci_cd-staging-2024-10-17.apk
+- 1.2.3-test_ci_cd-release-2024-10-17.aab (release only)
+```
+
+## 🏗️ Build Strategy
+
+### Main Branch (Production/Release)
+
+- ✅ **APK** - Always built
+- ✅ **AAB** - Always built (for Play Store)
+- ✅ **Auto-tagging** - Creates git tag `v{version_name}`
+- ✅ **GitHub Release** - Full release (not pre-release)
 
 ### Staging Branch
 
-```
-Format: X.Y.Z-staging+BUILD.HASH
-Example: 1.2.3-staging+127.b5e9f1a
-
-X.Y.Z = Base version from pubspec.yaml
--staging = Suffix to identify staging builds
-BUILD = Auto-incremented based on staging commits
-HASH = Git commit hash
-```
+- ✅ **APK** - Always built
+- ❌ **AAB** - NOT built (staging doesn't need Play Store bundle)
+- ✅ **Auto-tagging** - Creates git tag `staging-v{version_name}`
+- ✅ **GitHub Release** - Pre-release for testing
 
 ## 🚀 How to Use
 
 ### For Production Release (Main Branch)
 
-1. **Update Version in pubspec.yaml** (Manual Control)
+1. **Update both version name AND version code in pubspec.yaml**:
    ```yaml
    # pubspec.yaml
-   version: 1.3.0+1  # Update the X.Y.Z part manually
+   version: 1.3.0+46  # Update BOTH parts manually
    ```
 
-2. **Commit and Push to Main**
+2. **Commit and push**:
    ```bash
    git checkout main
    git add pubspec.yaml
-   git commit -m "feat: new feature for v1.3.0"
+   git commit -m "release: v1.3.0 with new features"
    git push origin main
    ```
 
-3. **Pipeline Automatically**:
-    - ✅ Runs tests and code analysis
-    - ✅ Auto-increments build number (1 → 2)
-    - ✅ Adds commit hash: `1.3.0+2.a3f7b2c`
-    - ✅ Builds APK and AAB
-    - ✅ Creates GitHub Release with tag `v1.3.0+2.a3f7b2c`
-    - ✅ Uploads artifacts
+3. **Pipeline automatically**:
+    - ✅ Reads version: `1.3.0` (name) and `46` (code)
+    - ✅ Runs tests and analysis
+    - ✅ Builds APK: `1.3.0-test_ci_cd-release-2024-10-17.apk`
+    - ✅ Builds AAB: `1.3.0-test_ci_cd-release-2024-10-17.aab`
+    - ✅ Creates tag: `v1.3.0`
+    - ✅ Creates GitHub Release with artifacts
+    - ✅ Release appears at: `https://github.com/d-bhakta/test_ci_cd/releases/tag/v1.3.0`
 
-4. **Result**: Production release with your manually controlled version!
+### For Staging Build
 
-### For Staging Release (Staging Branch)
+1. **NO version update needed** (or update if you want):
+   ```yaml
+   # pubspec.yaml
+   version: 1.3.0+46  # Can keep same as main or update
+   ```
 
-1. **No Manual Version Update Needed**
-    - Keep the base version in pubspec.yaml as is
-    - Build number auto-increments automatically
-
-2. **Just Push to Staging**
+2. **Just push to staging**:
    ```bash
    git checkout staging
    git add .
@@ -74,228 +88,228 @@ HASH = Git commit hash
    git push origin staging
    ```
 
-3. **Pipeline Automatically**:
-    - ✅ Runs tests and code analysis
-    - ✅ Auto-calculates build number from commit count
-    - ✅ Adds `-staging` suffix
-    - ✅ Adds commit hash
-    - ✅ Builds APK and AAB
-    - ✅ Creates GitHub Pre-release with tag `staging-v1.2.3-staging+127.b5e9f1a`
-    - ✅ Uploads artifacts
-
-4. **Result**: Staging release with auto-versioning!
+3. **Pipeline automatically**:
+    - ✅ Reads version from pubspec.yaml
+    - ✅ Runs tests and analysis
+    - ✅ Builds APK ONLY: `1.3.0-test_ci_cd-staging-2024-10-17.apk`
+    - ✅ Creates tag: `staging-v1.3.0`
+    - ✅ Creates GitHub Pre-release
+    - ✅ Pre-release appears at releases page (marked as pre-release)
 
 ## 📦 Pipeline Jobs
 
 ### 1. Version Management
 
-- Calculates version based on branch
-- Main: Uses manual version + auto build number
-- Staging: Auto-increments build + adds suffix
+- Extracts version name and code from `pubspec.yaml`
+- Gets project name from `pubspec.yaml`
+- Determines branch type (release/staging)
+- Gets current date for artifact naming
 
 ### 2. Test & Code Quality
 
-- Format verification
-- Code analysis (`flutter analyze`)
-- Unit and widget tests
-- Coverage report generation
+- `dart format --check` - Code formatting
+- `flutter analyze` - Static analysis
+- `flutter test --coverage` - Unit/widget tests
+- Coverage report upload
 
 ### 3. Build Android
 
-- Builds APK for distribution
-- Builds AAB for Play Store
-- Names artifacts with version and branch
+- **APK**: Always built for both branches
+- **AAB**: Only built for main (release) branch
+- Artifacts named: `{version}-{project}-{type}-{date}.{ext}`
 
 ### 4. Release
 
-- **Staging**: Creates pre-release with staging tag
-- **Production**: Creates full release with changelog
+- **Main**: Creates full GitHub release with tag `v{version}`
+- **Staging**: Creates pre-release with tag `staging-v{version}`
+- Auto-generates changelog from git commits
 
 ### 5. Build Summary
 
-- Generates summary in GitHub Actions UI
+- Displays build info in GitHub Actions UI
+- Shows artifact names
+- Shows job results
 
-## 🎨 Version Bump Guide (Main Branch Only)
+## 🎨 Version Bump Strategy
 
-When to bump which version number:
+Since you have full manual control, you decide when to bump:
 
-| Change Type      | Example                        | Version Bump              |
-|------------------|--------------------------------|---------------------------|
-| Breaking changes | Complete redesign, API changes | `2.0.0` → `3.0.0` (MAJOR) |
-| New features     | New screens, functionality     | `1.2.3` → `1.3.0` (MINOR) |
-| Bug fixes        | Crash fixes, UI tweaks         | `1.2.3` → `1.2.4` (PATCH) |
+| Change Type   | Example           | What to Update          |
+|---------------|-------------------|-------------------------|
+| Major feature | Complete redesign | `1.2.3+45` → `2.0.0+46` |
+| New feature   | Add screen        | `1.2.3+45` → `1.3.0+46` |
+| Bug fix       | Fix crash         | `1.2.3+45` → `1.2.4+46` |
+| Rebuild       | No code change    | `1.2.3+45` → `1.2.3+46` |
 
-### Example Workflow
+**Remember**: Always increment version code for each build!
 
-```bash
-# Bug Fix Release
-# Update pubspec.yaml: 1.2.3 → 1.2.4
-git checkout main
-sed -i 's/version: 1.2.3/version: 1.2.4/' pubspec.yaml
-git commit -m "fix: resolve login crash"
-git push origin main
-# Pipeline creates: 1.2.4+46.c8d2e1f
+### Version Code Best Practices
 
-# New Feature Release
-# Update pubspec.yaml: 1.2.4 → 1.3.0
-sed -i 's/version: 1.2.4/version: 1.3.0/' pubspec.yaml
-git commit -m "feat: add dark mode"
-git push origin main
-# Pipeline creates: 1.3.0+47.d9e3f2g
-
-# Breaking Change Release
-# Update pubspec.yaml: 1.3.0 → 2.0.0
-sed -i 's/version: 1.3.0/version: 2.0.0/' pubspec.yaml
-git commit -m "feat!: new navigation system (breaking)"
-git push origin main
-# Pipeline creates: 2.0.0+48.e1f4g3h
+```
+Initial Release:     1.0.0+1
+Bug Fix:             1.0.1+2
+Feature:             1.1.0+3
+Another Feature:     1.2.0+4
+Major Release:       2.0.0+5
 ```
 
-## 📥 Artifacts
-
-After each build, the following artifacts are available:
-
-1. **APK Files**: For direct installation
-    - `app-main-{version}.apk` (production)
-    - `app-staging-{version}.apk` (staging)
-
-2. **AAB Files**: For Play Store
-    - `app-main-{version}.aab` (production)
-    - `app-staging-{version}.aab` (staging)
-
-3. **Coverage Report**: `coverage/lcov.info`
+**Never reuse a version code!** Google Play Store requires each upload to have a unique version
+code.
 
 ## 🔍 Viewing Releases
 
 ### Production Releases
-
 ```
-https://github.com/d-bhakta/test_ci_cd/releases
-Look for: v1.2.3+45.a3f7b2c (no "staging" in name)
+URL: https://github.com/d-bhakta/test_ci_cd/releases
+Tag: v1.2.3
+Files:
+  - 1.2.3-test_ci_cd-release-2024-10-17.apk
+  - 1.2.3-test_ci_cd-release-2024-10-17.aab
 ```
 
 ### Staging Releases
-
 ```
-https://github.com/d-bhakta/test_ci_cd/releases
-Look for: staging-v1.2.3-staging+127.b5e9f1a (marked as pre-release)
-```
-
-## 🔧 Configuration
-
-### Required GitHub Settings
-
-No secrets required for basic functionality! However, for advanced features:
-
-```yaml
-# Optional secrets for Play Store deployment
-GOOGLE_PLAY_SERVICE_ACCOUNT: "{ ... }"  # For auto-deployment
-KEYSTORE_BASE64: "..."                   # For app signing
+URL: https://github.com/d-bhakta/test_ci_cd/releases
+Tag: staging-v1.2.3
+Badge: Pre-release
+Files:
+  - 1.2.3-test_ci_cd-staging-2024-10-17.apk
 ```
 
-### Branch Protection (Recommended)
+## 📊 Complete Workflow Example
+
+### Scenario: Release Version 1.5.0
+
+```bash
+# 1. Start from main
+git checkout main
+git pull origin main
+
+# 2. Update version in pubspec.yaml
+# Change: version: 1.4.0+44
+# To:     version: 1.5.0+45
+
+# 3. Commit version bump
+git add pubspec.yaml
+git commit -m "release: bump version to 1.5.0"
+
+# 4. Push to trigger pipeline
+git push origin main
+
+# 5. Monitor pipeline
+# Go to: https://github.com/d-bhakta/test_ci_cd/actions
+
+# 6. Check release (after ~5-10 minutes)
+# Go to: https://github.com/d-bhakta/test_ci_cd/releases/tag/v1.5.0
+
+# 7. Download and test artifacts:
+# - 1.5.0-test_ci_cd-release-2024-10-17.apk
+# - 1.5.0-test_ci_cd-release-2024-10-17.aab
+```
+
+## 🛠️ Helper Scripts
+
+### PowerShell (Windows)
+
+```powershell
+# Update version in pubspec.yaml
+.\bump_version.ps1 patch    # 1.2.3+45 → 1.2.4+46
+.\bump_version.ps1 minor    # 1.2.3+45 → 1.3.0+46
+.\bump_version.ps1 major    # 1.2.3+45 → 2.0.0+46
+```
+
+### Bash (Linux/Mac)
+```bash
+# Update version in pubspec.yaml
+./bump_version.sh patch    # 1.2.3+45 → 1.2.4+46
+./bump_version.sh minor    # 1.2.3+45 → 1.3.0+46
+./bump_version.sh major    # 1.2.3+45 → 2.0.0+46
+```
+
+**Note**: These scripts automatically increment version code!
+
+## 🎯 Key Differences from Auto-Versioning
+
+| Feature        | This Pipeline   | Auto-Versioning  |
+|----------------|-----------------|------------------|
+| Version Name   | ✅ Manual        | ❌ Auto-generated |
+| Version Code   | ✅ Manual        | ❌ Auto-generated |
+| Control        | 100% You        | Pipeline decides |
+| Flexibility    | Maximum         | Limited          |
+| Predictability | High            | Medium           |
+| Best For       | Production apps | Dev/testing      |
+
+## 🔐 GitHub Settings Required
+
+### Enable Actions
+
+1. Go to: Repository Settings → Actions → General
+2. Enable: "Allow all actions and reusable workflows"
+
+### Workflow Permissions
+
+1. Go to: Repository Settings → Actions → General
+2. Scroll to "Workflow permissions"
+3. Select: "Read and write permissions"
+4. Check: "Allow GitHub Actions to create and approve pull requests"
+
+### Branch Protection (Optional but Recommended)
 
 ```
 Main Branch:
-✅ Require pull request reviews before merging
-✅ Require status checks to pass (test-and-analyze)
+✅ Require pull request reviews
+✅ Require status checks to pass
 ✅ Require branches to be up to date
 ```
 
-## 🎯 Best Practices
+## 📝 Troubleshooting
 
-### For Development Team
-
-1. **Always test on staging first**
-   ```bash
-   git checkout staging
-   # ... make changes ...
-   git push origin staging
-   # Wait for staging build to succeed
-   ```
-
-2. **Only merge to main when staging is validated**
-   ```bash
-   git checkout main
-   git merge staging
-   # Update version in pubspec.yaml if needed
-   git push origin main
-   ```
-
-3. **Use conventional commits** (recommended)
-   ```
-   feat: add new feature
-   fix: resolve bug
-   docs: update documentation
-   test: add tests
-   chore: maintenance tasks
-   ```
-
-### Version Management Strategy
+### Problem: Pipeline fails on version extraction
 
 ```
-Staging: 1.2.3-staging+200.x → 1.2.3-staging+201.y → 1.2.3-staging+202.z
-                                                       ↓
-                                                    (validated)
-                                                       ↓
-Main:    1.2.3+45.a → Update to 1.2.4 → 1.2.4+46.b (PRODUCTION RELEASE)
+Solution: Ensure pubspec.yaml has correct format:
+version: 1.2.3+45  ✅ Correct
+version: 1.2.3     ❌ Missing version code
+version:1.2.3+45   ❌ Missing space after colon
 ```
 
-## 🐛 Troubleshooting
-
-### Pipeline fails on version-management job
-
-```bash
-# Ensure pubspec.yaml has valid version format
-version: 1.0.0+1  # ✅ Correct
-version: 1.0.0    # ❌ Missing build number
-```
-
-### Build number not incrementing
-
-```bash
-# Check git history is available
-git fetch --unshallow  # If using shallow clone
-```
-
-### Release not created
-
-```bash
-# Ensure GITHUB_TOKEN has write permissions
-# Check repository Settings > Actions > General > Workflow permissions
-# Select: "Read and write permissions"
-```
-
-## 📊 Monitoring
-
-Check build status:
+### Problem: No AAB generated for staging
 
 ```
-https://github.com/d-bhakta/test_ci_cd/actions
+Solution: This is expected! AAB is only built for main (release) branch.
+Staging builds only generate APK.
 ```
 
-View release history:
+### Problem: Tag already exists
 
 ```
-https://github.com/d-bhakta/test_ci_cd/releases
+Solution: Either:
+1. Delete the tag: git tag -d v1.2.3 && git push origin :refs/tags/v1.2.3
+2. Bump to a new version: Update version in pubspec.yaml
 ```
 
-## 🎉 Quick Reference
+### Problem: Release not created
 
-```bash
-# Staging Release (Auto-version)
-git checkout staging
-git commit -m "test: feature testing"
-git push origin staging
-# → Creates: staging-v1.2.3-staging+X.hash
-
-# Production Release (Manual version)
-git checkout main
-# Edit pubspec.yaml version: 1.2.3 → 1.2.4
-git commit -m "feat: new release"
-git push origin main
-# → Creates: v1.2.4+Y.hash
 ```
+Solution: Check workflow permissions (see GitHub Settings above)
+```
+
+## 🎉 Success Indicators
+
+After pipeline completes:
+
+✅ **GitHub Actions**: All jobs green  
+✅ **Artifacts**: Named correctly with date  
+✅ **Tag**: Created in repository  
+✅ **Release**: Visible on releases page  
+✅ **Files**: APK (always) + AAB (release only)
+
+## 📚 Additional Resources
+
+- [GitHub Releases](https://github.com/d-bhakta/test_ci_cd/releases)
+- [GitHub Actions](https://github.com/d-bhakta/test_ci_cd/actions)
+- [Semantic Versioning](https://semver.org/)
+- [Android Version Codes](https://developer.android.com/studio/publish/versioning)
 
 ---
 
