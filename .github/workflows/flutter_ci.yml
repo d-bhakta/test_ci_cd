@@ -117,12 +117,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Enhanced caching for pub dependencies
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: pub-deps-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-deps-${{ runner.os }}-
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.32.8'
+          flutter-version: '3.24.0'
           channel: 'stable'
           cache: true
+          cache-key: flutter-${{ runner.os }}-3.24.0
 
       - name: Install dependencies
         run: flutter pub get
@@ -153,6 +165,17 @@ jobs:
           path: coverage/lcov.info
           retention-days: 30
 
+      # Save complete workspace for build job (optimized)
+      - name: Save workspace for build job
+        if: success()
+        uses: actions/cache/save@v3
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+            build
+          key: workspace-${{ github.sha }}-${{ runner.os }}
+
   build-android:
     name: Build Android (${{ needs.version-management.outputs.branch_type }})
     runs-on: ubuntu-latest
@@ -163,19 +186,32 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Flutter
+      # Restore complete workspace from test job (includes Flutter SDK, pub cache, and build artifacts)
+      - name: Restore workspace from test job
+        uses: actions/cache/restore@v3
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+            build
+          key: workspace-${{ github.sha }}-${{ runner.os }}
+          fail-on-cache-miss: true
+
+      # Lightweight Flutter setup (reuses cached SDK)
+      - name: Setup Flutter (from cache)
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.32.8'
+          flutter-version: '3.24.0'
           channel: 'stable'
           cache: true
+          cache-key: flutter-${{ runner.os }}-3.24.0
 
-      - name: Install dependencies
-        run: flutter pub get
+      # Skip pub get - dependencies already in cache from test job!
+      # This saves significant time on every build
 
       - name: Build APK (Always)
         run: |
-          echo "Building APK for ${{ needs.version-management.outputs.branch_type }}"
+          echo "📱 Building APK for ${{ needs.version-management.outputs.branch_type }}"
           flutter build apk --release \
             --build-name=${{ needs.version-management.outputs.version_name }} \
             --build-number=${{ needs.version-management.outputs.version_code }}
