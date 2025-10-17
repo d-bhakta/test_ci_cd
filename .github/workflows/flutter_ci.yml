@@ -72,12 +72,8 @@ jobs:
   version-management:
     name: Version Management
     runs-on: ubuntu-latest
-    needs: [ validate-version ]
-    # Run if validate-version succeeded OR was skipped (staging branch)
-    if: |
-      github.event_name == 'push' && 
-      always() && 
-      (needs.validate-version.result == 'success' || needs.validate-version.result == 'skipped')
+    # Version management runs on all pushes, no dependency on validate-version
+    if: github.event_name == 'push'
     outputs:
       version_name: ${{ steps.version.outputs.version_name }}
       version_code: ${{ steps.version.outputs.version_code }}
@@ -171,11 +167,7 @@ jobs:
   test-and-analyze:
     name: Test & Code Quality
     runs-on: ubuntu-latest
-    needs: [ validate-version ]
-    # Run if validate-version succeeded OR was skipped (staging branch)
-    if: |
-      always() && 
-      (needs.validate-version.result == 'success' || needs.validate-version.result == 'skipped')
+    # Test runs on all events (push and pull_request), no dependency on validate-version
     
     steps:
       - name: Checkout repository
@@ -245,11 +237,8 @@ jobs:
     name: Build Android (${{ needs.version-management.outputs.branch_type }})
     runs-on: ubuntu-latest
     needs: [ version-management, test-and-analyze ]
-    # Only run if both version-management and tests succeeded
-    if: |
-      github.event_name == 'push' && 
-      needs.version-management.result == 'success' && 
-      needs.test-and-analyze.result == 'success'
+    # Only run on push events when both dependencies succeeded
+    if: github.event_name == 'push'
     
     steps:
       - name: Checkout repository
