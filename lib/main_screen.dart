@@ -150,7 +150,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     WidgetsFlutterBinding.ensureInitialized();
     PackageInfo.fromPlatform().then((PackageInfo packageInfo) {
