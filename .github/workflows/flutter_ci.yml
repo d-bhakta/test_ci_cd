@@ -10,6 +10,8 @@ on:
     # Commit changes and the before push run these commands
     # git tag v[YOUR_VERSION] (ex: git tag v1.0.0)
     # git push origin v[YOUR_VERSION] (ex: git push origin v1.0.0)
+permissions:
+  contents: write
 
 jobs:
   build:
