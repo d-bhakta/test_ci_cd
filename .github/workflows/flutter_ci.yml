@@ -222,8 +222,9 @@ jobs:
           retention-days: 30
 
       # Save complete workspace for build job (optimized)
+      # Use always() to ensure cache is saved even if formatting check fails with continue-on-error
       - name: Save workspace for build job
-        if: success()
+        if: always()
         uses: actions/cache/save@v3
         with:
           path: |
@@ -236,7 +237,7 @@ jobs:
     name: Build Android (${{ needs.version-management.outputs.branch_type }})
     runs-on: ubuntu-latest
     needs: [ version-management, test-and-analyze ]
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && needs.version-management.result == 'success' && needs.test-and-analyze.result == 'success'
     
     steps:
       - name: Checkout repository
@@ -251,7 +252,7 @@ jobs:
             .dart_tool
             build
           key: workspace-${{ github.sha }}-${{ runner.os }}
-          fail-on-cache-miss: true
+          fail-on-cache-miss: false
 
       # Lightweight Flutter setup (reuses cached SDK)
       - name: Setup Flutter (from cache)
