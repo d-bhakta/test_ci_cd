@@ -74,6 +74,34 @@ jobs:
               exit 1
             fi
           
+            # 🔍 CHECK: Verify version is different from last production release tag
+            echo "🔍 Checking if version has been updated from previous release..."
+            # Only check against production tags (those with 'v' prefix)
+            # This excludes staging tags which don't have 'v' prefix
+            LAST_RELEASE_TAG=$(git tag -l "v*" --sort=-version:refname | head -n 1 || echo "")
+          
+            if [ -n "$LAST_RELEASE_TAG" ]; then
+              LAST_VERSION=${LAST_RELEASE_TAG#v}  # Remove 'v' prefix
+              echo "Last production release: $LAST_VERSION"
+              echo "Current version: $CURRENT_VERSION"
+          
+              if [ "$CURRENT_VERSION" = "$LAST_VERSION" ]; then
+                echo "❌ ERROR: Version in pubspec.yaml ($CURRENT_VERSION) is the same as the last production release ($LAST_VERSION)"
+                echo ""
+                echo "📝 Action Required:"
+                echo "   Please update the version in pubspec.yaml before releasing."
+                echo "   Current: version: $CURRENT_VERSION"
+                echo "   Example: version: 1.2.4+46"
+                echo ""
+                echo "ℹ️  Note: Staging tags are excluded from this check."
+                exit 1
+              else
+                echo "✅ Version check passed: $CURRENT_VERSION is different from $LAST_VERSION"
+              fi
+            else
+              echo "ℹ️  No previous production release tags found. This will be the first release."
+            fi
+          
             VERSION_NAME="$BASE_VERSION"
             FULL_VERSION="${BASE_VERSION}+${VERSION_CODE}"
           
@@ -131,10 +159,10 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
+          flutter-version: '3.32.8'
           channel: 'stable'
           cache: true
-          cache-key: flutter-${{ runner.os }}-3.24.0
+          cache-key: flutter-${{ runner.os }}-3.32.8
 
       - name: Install dependencies
         run: flutter pub get
@@ -201,10 +229,10 @@ jobs:
       - name: Setup Flutter (from cache)
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
+          flutter-version: '3.32.8'
           channel: 'stable'
           cache: true
-          cache-key: flutter-${{ runner.os }}-3.24.0
+          cache-key: flutter-${{ runner.os }}-3.32.8
 
       # Skip pub get - dependencies already in cache from test job!
       # This saves significant time on every build
@@ -297,7 +325,7 @@ jobs:
             
             ### 📦 Build Info
             - Project: `${{ needs.version-management.outputs.project_name }}`
-            - Flutter Version: `3.24.0`
+            - Flutter Version: `3.32.8`
             
             ### 📥 Download
             - **APK**: `${{ needs.version-management.outputs.project_name }}-${{ needs.version-management.outputs.full_version }}-staging-${{ needs.version-management.outputs.current_date }}.apk`
@@ -368,7 +396,7 @@ jobs:
             
             ### 📦 Build Info
             - Project: `${{ needs.version-management.outputs.project_name }}`
-            - Flutter Version: `3.24.0`
+            - Flutter Version: `3.32.8`
             - Branch: `main`
             
             ### 📥 Downloads
