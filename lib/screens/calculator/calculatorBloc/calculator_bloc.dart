@@ -16,33 +16,18 @@ class CalculatorBloc extends Bloc<CalculatorEvent, CalculatorState> {
   }
 
   void _onNumber1Changed(Number1Changed event, Emitter<CalculatorState> emit) {
-    emit(
-      state.copyWith(
-        number1: event.number1,
-        clearResult: true,
-      ),
-    );
+    emit(state.copyWith(number1: event.number1, clearResult: true));
   }
 
   void _onNumber2Changed(Number2Changed event, Emitter<CalculatorState> emit) {
-    emit(
-      state.copyWith(
-        number2: event.number2,
-        clearResult: true,
-      ),
-    );
+    emit(state.copyWith(number2: event.number2, clearResult: true));
   }
 
   void _onOperatorChanged(
     OperatorChanged event,
     Emitter<CalculatorState> emit,
   ) {
-    emit(
-      state.copyWith(
-        operator: event.operator,
-        clearResult: true,
-      ),
-    );
+    emit(state.copyWith(operator: event.operator, clearResult: true));
   }
 
   void _onCalculatePressed(
