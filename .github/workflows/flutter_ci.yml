@@ -2,9 +2,11 @@ name: Flutter CI
 
 on:
   push:
-    branches:
-      - main
-      - staging
+    #    branches:
+    #      - main
+    #      - staging
+
+    #    Let the workflow run only when a new tag is pushed
     tags:
       - 'v*.*.*'    # matches v1.0.0, v2.3.4,v2.0.1+2 etc.
     # Commit changes and the before push run these commands
