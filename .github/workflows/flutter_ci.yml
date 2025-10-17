@@ -6,8 +6,7 @@ on:
       - main
       - staging
     tags:
-      - 'v*.*.*'    # matches v1.0.0, v2.3.4, etc.
-      - 'v*.*.*+*'  # matches v1.0.0+1, v2.0.0+123, etc.
+      - 'v*.*.*'    # matches v1.0.0, v2.3.4,v2.0.1+2 etc.
     # Commit changes and the before push run these commands
     # git tag v[YOUR_VERSION] (ex: git tag v1.0.0)
     # git push origin v[YOUR_VERSION] (ex: git push origin v1.0.0)
