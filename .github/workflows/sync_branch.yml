@@ -1,0 +1,27 @@
+on:
+  push:
+    branches:
+      - staging
+
+jobs:
+  sync_branches:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "CI Bot"
+          git config user.email "ci@bot.com"
+
+      - name: Sync dev to regional branches
+        run: |
+          for branch in au nz in; do
+            git checkout $branch
+            git merge --no-ff origin/dev -m "Auto-sync from dev to $branch"
+            git checkout -- path/to/excluded_file
+            git commit -am "Preserve excluded file" || true
+            git push origin $branch
+          done
