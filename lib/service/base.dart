@@ -11,4 +11,5 @@ class BaseUrl {
 
 class ApiConfig {
   static const baseUrl = "https://mocki.io/v1";
+  static const baseUrl2 = "https:au.testapi.com";
 }
