@@ -1,7 +1,7 @@
 on:
   push:
     branches:
-      - dev
+      - staging
 
 jobs:
   sync_branches:
