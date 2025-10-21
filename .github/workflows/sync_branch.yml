@@ -20,10 +20,10 @@ jobs:
 
       - name: Sync staging to regional branches
         run: |
-          for branch in au nz in; do
+          for branch in au nz; do
             git checkout $branch
             git merge --no-ff origin/staging -m "Auto-sync from staging to $branch"
-            git checkout -- path/to/excluded_file
-            git commit -am "Preserve excluded file" || true
+            git checkout -- lib/service/base.dart
+            git commit -am "Preserve base.dart" || true
             git push origin $branch
           done
