@@ -1,9 +1,9 @@
 // This is the stateful widget that will hold our main page content and the navigation bar.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:test_ci_cd/screens/calculator/calculator.dart';
 import 'package:test_ci_cd/screens/user/user.dart';
-
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -33,9 +33,11 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
-    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-      // systemNavigationBarColor: Colors.amber, // Set the status bar icon brightness
-    ));
+    SystemChrome.setSystemUIOverlayStyle(
+      SystemUiOverlayStyle(
+        // systemNavigationBarColor: Colors.amber, // Set the status bar icon brightness
+      ),
+    );
     // Scaffold provides the basic structure of the visual interface.
     return Scaffold(
       // extendBody: true,
@@ -44,10 +46,14 @@ class _MainPageState extends State<MainPage> {
       // The body will display the widget from our _widgetOptions list based on the selected index.
       body: Stack(
         children: [
-          SafeArea(child: Padding(
-            padding: const EdgeInsets.only(bottom: kBottomNavigationBarHeight),
-            child: Center(child: _widgetOptions.elementAt(_selectedIndex)),
-          )),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.only(
+                bottom: kBottomNavigationBarHeight,
+              ),
+              child: Center(child: _widgetOptions.elementAt(_selectedIndex)),
+            ),
+          ),
           Align(
             alignment: Alignment.bottomCenter,
             child: ClipRRect(
@@ -132,8 +138,26 @@ class SearchPage extends StatelessWidget {
 }
 
 // A simple stateless widget for the Profile page.
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
+
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  String appVersion = "";
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsFlutterBinding.ensureInitialized();
+    PackageInfo.fromPlatform().then((PackageInfo packageInfo) {
+      setState(() {
+        appVersion = packageInfo.version;
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -141,31 +165,40 @@ class ProfilePage extends StatelessWidget {
       child: Container(
         color: Colors.blueAccent,
         child: Center(
-          child: Row(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text(
-                'Profile Page',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              InkWell(
-                onTap: () {
-                  showModalBottomSheet(
-                    context: context,
-                    builder: (_) => Container(
-                      height: 150,
-                      padding: EdgeInsets.symmetric(horizontal: 30),
-                      color: Colors.cyanAccent,
-                      child: SafeArea(
-                        child: const Center(
-                          child: Text(
-                            "This is a modal bottom sheet, s jmc ijcx djcn dnc ijdci jmodic iodjsc iojdsc oijsdco ijsod cijoisjdcoijsdcoijsodc oijdc iodjc oijdc oijdc ij sdj ijdsc ishdc khsdkc ksdch ksdchiu hf hdic idsuh l vkfvpojofvjodifjv odifjv",
+              Text("App version: $appVersion", style: TextStyle(fontSize: 18)),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Profile Page',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(width: 10),
+                  InkWell(
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        builder: (_) => Container(
+                          height: 150,
+                          padding: EdgeInsets.symmetric(horizontal: 30),
+                          color: Colors.cyanAccent,
+                          child: SafeArea(
+                            child: const Center(
+                              child: Text(
+                                "This is a modal bottom sheet, s jmc ijcx djcn dnc ijdci jmodic iodjsc iojdsc oijsdco ijsod cijoisjdcoijsdcoijsodc oijdc iodjc oijdc oijdc ij sdj ijdsc ishdc khsdkc ksdch ksdchiu hf hdic idsuh l vkfvpojofvjodifjv odifjv",
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                  );
-                },
-                child: const Icon(Icons.add_a_photo),
+                      );
+                    },
+                    child: const Icon(Icons.add_a_photo),
+                  ),
+                ],
               ),
             ],
           ),
