@@ -1,7 +1,12 @@
+name: Sync branch CI/CD Pipeline
+
 on:
   push:
     branches:
       - staging
+
+permissions:
+  contents: write
 
 jobs:
   sync_branches:
@@ -16,12 +21,12 @@ jobs:
           git config user.name "CI Bot"
           git config user.email "ci@bot.com"
 
-      - name: Sync dev to regional branches
+      - name: Sync staging to regional branches
         run: |
-          for branch in au nz in; do
+          for branch in au nz; do
             git checkout $branch
-            git merge --no-ff origin/dev -m "Auto-sync from dev to $branch"
-            git checkout -- path/to/excluded_file
-            git commit -am "Preserve excluded file" || true
+            git merge --no-ff origin/staging -m "Auto-sync from staging to $branch"
+            git checkout -- lib/service/base.dart
+            git commit -am "Preserve base.dart" || true
             git push origin $branch
           done
