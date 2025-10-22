@@ -31,8 +31,10 @@ jobs:
       - name: Check version against last release
         run: |
           # Extract current version from pubspec.yaml
-          CURRENT_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d ' ')
-          
+          # CURRENT_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d ' ')
+          # More robust
+          CURRENT_VERSION=$(awk -F':[[:space:]]*' '/^[[:space:]]*version:/ {print $2; exit}' pubspec.yaml)
+
           echo "🔍 Validating release version..."
           echo "Current version in pubspec.yaml: $CURRENT_VERSION"
           
@@ -40,14 +42,14 @@ jobs:
           LAST_RELEASE_TAG=$(git tag -l "v*" --sort=-version:refname | head -n 1 || echo "")
           
           if [ -n "$LAST_RELEASE_TAG" ]; then
-            LAST_VERSION=${LAST_RELEASE_TAG#v}  # Remove 'v' prefix
-            echo "Last production release: $LAST_VERSION (tag: $LAST_RELEASE_TAG)"
+            LAST_RELEASE_VERSION=${LAST_RELEASE_TAG#v}  # Remove 'v' prefix
+            echo "Last production release: $LAST_RELEASE_VERSION (tag: $LAST_RELEASE_TAG)"
             echo ""
           
-            if [ "$CURRENT_VERSION" = "$LAST_VERSION" ]; then
+            if [ "$CURRENT_VERSION" = "$LAST_RELEASE_VERSION" ]; then
               echo "❌ ERROR: Version conflict detected!"
               echo ""
-              echo "Version in pubspec.yaml ($CURRENT_VERSION) is the same as the last production release ($LAST_VERSION)"
+              echo "Version in pubspec.yaml ($CURRENT_VERSION) is the same as the last production release ($LAST_RELEASE_VERSION)"
               echo ""
               echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
               echo "📝 Action Required:"
@@ -62,7 +64,7 @@ jobs:
               exit 1
             else
               echo "✅ Version validation passed!"
-              echo "   Current version ($CURRENT_VERSION) is different from last release ($LAST_VERSION)"
+              echo "   Current version ($CURRENT_VERSION) is different from last release ($LAST_RELEASE_VERSION)"
             fi
           else
             echo "ℹ️  No previous production release tags found."
@@ -89,8 +91,8 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract version from pubspec.yaml
-        id: version
+      - name: Extract project name from pubspec.yaml
+        id: extract-project-name
         run: |
           # Get branch info
           BRANCH=${GITHUB_REF#refs/heads/}
@@ -102,7 +104,9 @@ jobs:
           echo "branch_type=$BRANCH_TYPE" >> $GITHUB_OUTPUT
           
           # Get project name from pubspec.yaml
-          PROJECT_NAME=$(grep '^name:' pubspec.yaml | sed 's/name: //' | tr -d ' ')
+          # PROJECT_NAME=$(grep '^name:' pubspec.yaml | sed 's/name: //' | tr -d ' ')
+          # More robust
+          PROJECT_NAME=$(awk -F':[[:space:]]*' '/^[[:space:]]*name:/ {print $2; exit}' pubspec.yaml)
           echo "project_name=$PROJECT_NAME" >> $GITHUB_OUTPUT
           
           # Get current date (YYYY-MM-DD format)
